@@ -1,9 +1,10 @@
 mod physics;
 
+use std::ops::Deref;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::{Schedule, World};
- use godot::engine::{NodeExt};
-use godot::prelude::*;
+ use godot::engine::{InputEvent, NodeExt};
+use godot::prelude::{Base, Color, Gd, godot_api, GodotClass, Node2D, Node2DVirtual, NodePath, Rect2, Vector2};
 use crate::ecs::physics::{CONTAINER, physics, Position, Velocity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -50,10 +51,23 @@ impl Node2DVirtual for EcsFramework {
         self.world.spawn(
             (
                 Position(Vector2::new(100.0, 100.0)),
-                Velocity(Vector2::new(1.0, 0.0))
+                Velocity(Vector2::new(0.0, 0.0))
             )
         );
+        self.base.set_physics_process(false);
     }
+    
+    fn unhandled_key_input(&mut self, event: Gd<InputEvent>) {
+        if event.deref().is_action_pressed("Start Sim".into()) {
+            self.base.set_physics_process(true);
+        } else if event.deref().is_action_pressed("Stop Sim".into()) {
+            self.base.set_physics_process(false);
+        } else if event.deref().is_action_pressed("Toggle Sim".into()) {
+            let is_processing = self.base.is_physics_processing();
+            self.base.set_physics_process(!is_processing);
+        }
+    }
+    
     
     fn draw(&mut self) {
         // draw bounding box
@@ -68,7 +82,10 @@ impl Node2DVirtual for EcsFramework {
         // draw entities
         self.world.query::<&Position>().iter(&self.world).for_each(|position| {
             self.base.draw_circle(
-                Vector2 { x: 0.0, y: CONTAINER.1.y } - **position,
+                Vector2 {
+                    x: position.x,
+                    y: CONTAINER.1.y - position.y
+                },
                 10.0,
                 Color::from_rgb(1.0, 0.0, 0.0)
             );
