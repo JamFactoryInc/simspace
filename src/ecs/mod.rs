@@ -68,7 +68,7 @@ impl Node2DVirtual for EcsFramework {
         // draw entities
         self.world.query::<&Position>().iter(&self.world).for_each(|position| {
             self.base.draw_circle(
-                **position,
+                Vector2 { x: 0.0, y: CONTAINER.1.y } - **position,
                 10.0,
                 Color::from_rgb(1.0, 0.0, 0.0)
             );

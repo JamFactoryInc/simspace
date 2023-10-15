@@ -1,5 +1,5 @@
-use std::ops::{Deref, DerefMut, Sub};
-use bevy::prelude::{Bundle, Component, Deref, DerefMut, Query};
+use std::ops::{Sub};
+use bevy::prelude::{Component, Deref, DerefMut, Query};
 use godot::prelude::Vector2;
 
 pub const GRAVITY: Vector2 = Vector2 { x: 0.0, y: 0.98 };
@@ -17,18 +17,12 @@ pub struct Position(pub Vector2);
 #[derive(Component, Deref, DerefMut)]
 pub struct Velocity(pub Vector2);
 
-#[derive(Bundle)]
-struct PhysicsBundle {
-    position: Position,
-    velocity: Velocity,
-}
-
 pub fn physics(mut query: Query<(&mut Position, &mut Velocity)>) {
     for (mut position, mut velocity) in &mut query {
         // move
         **position += **velocity;
         
-        // adjust for
+        // adjust for when the velocity step moves past a bound
         if position.x < CONTAINER.0.x {
             position.x -= CONTAINER.0.x.sub(position.x).copysign(-velocity.x)
         }
@@ -47,6 +41,6 @@ pub fn physics(mut query: Query<(&mut Position, &mut Velocity)>) {
         velocity.y = velocity.y.copysign(velocity.y * (CONTAINER.1.y - position.y) * (position.y - CONTAINER.0.y));
         
         // accelerate
-        **velocity += GRAVITY;
+        **velocity -= GRAVITY;
     }
 }
