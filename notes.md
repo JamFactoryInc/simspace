@@ -27,4 +27,35 @@
 ## Notes:
     Added process timings to measure performance
     Total timings won't quite add up to the total microseconds per frame, but it'll be a good measure of how long our code is taking
-    
+
+# LOG-4 0.1:
+## Notes:
+    Time to stress test.
+    Timings are looking about the same for 10 entities
+
+# LOG-4 0.2:
+## Notes:
+    Rendering time for 5000 entities is incredibly bad. Clearly drawing each one individually is not the way to go.
+    Note that the `render` time displayed is just the time taken for the CPU to update the positions of our particles,
+    not the actual render time taken by the GPU
+    I'll try to use a MeshInstance to make use of GPU instancing & help shorted the cpu component of the draw time
+    Good news though: even on a debug build, we're getting about 1ms physics processing timings for 5000 entities.
+    At least that part is efficient enough at the moment
+
+# LOG-5 0.1.3:
+## Notes:
+    Looks like using instancing has vastly improved our performance, but gravity seems to have inverted.
+    Just flipping the gravity multiplier should be a quick fix for now.
+    I'll also make the particles a bit smaller since getting up to 5000 is making it hard to see what's happening.
+    Also, it's clear that the pseudorandom numbers I'm using the distribute the particles aren't uniformly distributed,
+    which is visible now that we're sampling 5000 of them. I won't fix this since it's not really what I'm testing.
+    Let's keep pushing the numbers to see what we need to do next
+
+# LOG-5 0.1.4:
+## Notes:
+    25000 particles is starting to get a bit choppy.
+    Even after our rendering overhaul, it still seems to be the bottleneck.
+    Also, the compression is starting to really struggle with what is effectively visual noise at this point.
+    I'll have to switch my benchmark soon for the sake of the image quality, but for now, we keep pushing.
+    Next, I'll use Godot's RenderServer to directly set the mesh instance buffer.
+    This will save quite a few calls & copies, all while being significantly more cache efficient

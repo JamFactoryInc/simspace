@@ -2,13 +2,18 @@ use std::ops::{Add, Deref, Rem};
 
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::{Schedule, World};
-use godot::engine::{Control, ControlVirtual, InputEvent, NodeExt};
+use godot::builtin::Transform2D;
+use godot::engine::{Control, ControlVirtual, InputEvent, MultiMesh, MultiMeshInstance2D, NodeExt};
+use godot::engine::utilities::randf_range;
+use godot::log::godot_print;
 use godot::prelude::{Base, Color, Gd, godot_api, GodotClass, Node2DVirtual, NodePath, Rect2, Vector2};
 
 use crate::ecs::physics::{CONTAINER, physics, Position, Velocity};
 use crate::util::time;
 
 mod physics;
+
+const INSTANCES: usize = 25000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[derive(ScheduleLabel)]
@@ -31,7 +36,8 @@ struct EcsFramework {
     #[base]
     base: Base<Control>,
     world: World,
-    timer: EcsTimer
+    timer: EcsTimer,
+    multi_mesh: Option<Gd<MultiMesh>>
 }
 
 impl EcsFramework {
@@ -49,16 +55,15 @@ impl EcsFramework {
         );
     }
     
-    fn draw_entities(&mut self) {
-        self.world.query::<&Position>().iter(&self.world).for_each(|position| {
-            self.base.draw_circle(
-                Vector2 {
-                    x: position.x,
-                    y: CONTAINER.1.y - position.y
-                },
-                10.0,
-                Color::from_rgb(1.0, 0.0, 0.0)
-            );
+    fn draw_entities(world: &mut World, multi_mesh: &mut MultiMesh) {
+        world.query::<&Position>()
+            .iter(world)
+            .enumerate()
+            .for_each(|(i, position)| {
+                multi_mesh.set_instance_transform_2d(
+                    i as i32,
+                    Self::position_to_transform(position)
+                );
         })
     }
     
@@ -75,6 +80,14 @@ impl EcsFramework {
                 self.timer.render_micros
             ).into()
         )
+    }
+    
+    fn position_to_transform(pos: &Position) -> Transform2D {
+        Transform2D {
+            a: Vector2 { x: 2.0, y: 0.0 },
+            b: Vector2 { x: 0.0, y: 2.0 },
+            origin: pos.0,
+        }
     }
 }
 
@@ -95,18 +108,37 @@ impl ControlVirtual for EcsFramework {
         Self {
             base,
             world,
-            timer: EcsTimer::default()
+            timer: EcsTimer::default(),
+            multi_mesh: None
         }
     }
     
     fn ready(&mut self) {
-        self.world.spawn(
-            (
-                Position(Vector2::new(100.0, 100.0)),
-                Velocity(Vector2::new(10.0, 0.0))
-            )
+        
+        self.world.spawn_batch(
+            (0..INSTANCES).map(|_| {
+                (
+                    Position(Vector2::new(
+                        randf_range(CONTAINER.0.x as f64, CONTAINER.1.x as f64) as f32,
+                        randf_range(CONTAINER.0.y as f64, CONTAINER.1.y as f64) as f32,
+                    )),
+                    Velocity(Vector2::new(
+                        randf_range(0.0, 10.0) as f32,
+                        randf_range(0.0, 10.0) as f32
+                    ))
+                )
+            })
         );
         self.base.set_physics_process(false);
+        self.multi_mesh = self.base.get_child(0)
+            .unwrap()
+            .cast::<MultiMeshInstance2D>()
+            .get_multimesh();
+        
+        if let Some(mesh) = self.multi_mesh.as_mut() {
+            mesh.set_instance_count(INSTANCES as i32);
+            mesh.set_visible_instance_count(INSTANCES as i32);
+        }
     }
     
     fn unhandled_key_input(&mut self, event: Gd<InputEvent>) {
@@ -121,12 +153,16 @@ impl ControlVirtual for EcsFramework {
     }
     
     fn draw(&mut self) {
-        self.timer.render_micros_rolling += time(|| {
-            self.draw_bounding_box();
-            self.draw_entities();
-        }).0;
         
-        self.draw_timings()
+        self.draw_bounding_box();
+        self.draw_timings();
+        
+        let multi_mesh: &mut MultiMesh = self.multi_mesh.as_mut().unwrap();
+        let world = &mut self.world;
+        
+        self.timer.render_micros_rolling += time(|| {
+            Self::draw_entities(world, multi_mesh);
+        }).0;
     }
     
     fn physics_process(&mut self, _: f64) {

@@ -10,12 +10,12 @@ pub const CONTAINER: (Vector2, Vector2) = (
         y: 0.0
     },
     Vector2 {
-        x: 500.0,
-        y: 500.0
+        x: 1000.0,
+        y: 1000.0
     }
 );
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Deref, DerefMut, Copy, Clone)]
 pub struct Position(pub Vector2);
 
 #[derive(Component, Deref, DerefMut)]
@@ -45,6 +45,6 @@ pub fn physics(mut query: Query<(&mut Position, &mut Velocity)>) {
         }
         
         // accelerate
-        **velocity -= GRAVITY;
+        **velocity += GRAVITY;
     }
 }
