@@ -58,4 +58,9 @@
     Also, the compression is starting to really struggle with what is effectively visual noise at this point.
     I'll have to switch my benchmark soon for the sake of the image quality, but for now, we keep pushing.
     Next, I'll use Godot's RenderServer to directly set the mesh instance buffer.
-    This will save quite a few calls & copies, all while being significantly more cache efficient
+    This will save quite a few calls & copies, all while being significantly more cache efficient.
+    As a side note, I'm pretty surpirsed my initial collision function has held up so far.
+    It's getting up to 4ms per frame, though, so something tells me it'll be our next target.
+
+
+    
