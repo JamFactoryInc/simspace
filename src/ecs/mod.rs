@@ -1,14 +1,11 @@
-use std::ops::{Add, Deref, MulAssign, Rem};
-use std::simd::StdFloat;
+use std::ops::{Add, Deref, Rem};
 
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::{Schedule, World};
-use bevy::reflect::Tuple;
-use bevy::utils::petgraph::visit::Walker;
 use godot::builtin::{PackedFloat32Array, Transform2D};
 use godot::engine::{Control, ControlVirtual, InputEvent, MultiMesh, MultiMeshInstance2D, NodeExt, RenderingServer};
 use godot::engine::utilities::randf_range;
-use godot::prelude::{Base, Color, Gd, godot_api, GodotClass, Node2DVirtual, NodePath, Rect2, Vector2};
+use godot::prelude::{Base, Color, Gd, godot_api, GodotClass, NodePath, Rect2, Vector2};
 
 use crate::ecs::physics::{CONTAINER, physics, Position, Velocity};
 use crate::util::time;
@@ -29,7 +26,10 @@ struct EcsTimer {
     physics_micros_rolling: u64,
     render_micros: u64,
     render_micros_rolling: u64,
+    frame_micros: u64,
+    frame_micros_rolling: u64,
     frame_count: usize,
+    tick_count: usize,
 }
 
 #[derive(GodotClass)]
@@ -40,7 +40,8 @@ struct EcsFramework {
     world: World,
     timer: EcsTimer,
     multi_mesh: Option<Gd<MultiMesh>>,
-    multi_mesh_buffer: PackedFloat32Array
+    multi_mesh_buffer: PackedFloat32Array,
+    render_server: Gd<RenderingServer>,
 }
 
 impl EcsFramework {
@@ -58,32 +59,32 @@ impl EcsFramework {
         );
     }
     
-    fn draw_entities(world: &mut World, multi_mesh: &MultiMesh, multi_mesh_buffer: &mut PackedFloat32Array) {
-        
-        multi_mesh_buffer.as_mut_slice().chunks_exact_mut(8)
-            .zip(world.query::<&Position>().iter(world))
-            .for_each(|(transform, pos)|  {
+    fn draw_entities(&mut self) {
+        self.multi_mesh_buffer.as_mut_slice().chunks_exact_mut(8)
+            .zip(self.world.query::<&Position>().iter(&self.world))
+            .for_each(|(transform, pos)| {
                 transform[3] = pos.x;
                 transform[7] = pos.y;
             });
-        
-        RenderingServer::singleton().multimesh_set_buffer(
-            multi_mesh.get_rid(),
-            multi_mesh_buffer.clone()
+
+        self.render_server.multimesh_set_buffer(
+            self.multi_mesh.as_mut().unwrap().get_rid(),
+            self.multi_mesh_buffer.clone()
         );
     }
     
     fn draw_timings(&mut self) {
-        self.base.draw_string(
+        self.base.draw_multiline_string(
             self.base.get_theme_font("default".into()).unwrap(),
              Vector2 {
                 x: self.base.get_viewport_rect().size.x - 250.0,
                 y: 30.0,
             },
             format!(
-                "phys: {:?}us, render: {:?}us",
+                "fps: {:?}\nphysics: {:?}us\nmesh update: {:?}us",
                 self.timer.physics_micros,
-                self.timer.render_micros
+                self.timer.render_micros,
+                1000000.0 / self.timer.frame_micros as f32
             ).into()
         )
     }
@@ -101,10 +102,6 @@ impl EcsFramework {
 impl ControlVirtual for EcsFramework {
     fn init(base: Base<Control>) -> Self {
         
-        // let mut app = App::new();
-        // app.add_plugins(DefaultPlugins);
-        // app.add_systems(SystemLabel::Physics, movement);
-        
         let mut physics_schedule = Schedule::new();
         physics_schedule.add_systems(physics);
         
@@ -116,7 +113,8 @@ impl ControlVirtual for EcsFramework {
             world,
             timer: EcsTimer::default(),
             multi_mesh: None,
-            multi_mesh_buffer: PackedFloat32Array::from(vec![0f32; INSTANCES * 8].as_slice())
+            multi_mesh_buffer: PackedFloat32Array::from(vec![0f32; INSTANCES * 8].as_slice()),
+            render_server: RenderingServer::singleton()
         }
     }
     
@@ -148,16 +146,12 @@ impl ControlVirtual for EcsFramework {
         }
         
         self.multi_mesh_buffer.as_mut_slice().chunks_exact_mut(8)
-            .for_each(|transform|  {
+            .for_each(|transform| {
                 transform[0] = 2.0;
                 transform[5] = 2.0;
             });
-        
-        let multi_mesh: &mut MultiMesh = self.multi_mesh.as_mut().unwrap();
-        let world = &mut self.world;
-        let buffer = &mut self.multi_mesh_buffer;
-        
-        Self::draw_entities(world, multi_mesh, buffer);
+
+        self.draw_entities();
     }
     
     fn unhandled_key_input(&mut self, event: Gd<InputEvent>) {
@@ -172,25 +166,29 @@ impl ControlVirtual for EcsFramework {
     }
     
     fn draw(&mut self) {
-        
         self.draw_bounding_box();
         self.draw_timings();
-        
-        let multi_mesh: &mut MultiMesh = self.multi_mesh.as_mut().unwrap();
-        let world = &mut self.world;
-        let buffer = &mut self.multi_mesh_buffer;
-        
-        self.timer.render_micros_rolling += time(|| {
-            Self::draw_entities(world, multi_mesh, buffer);
-        }).0;
     }
-    
-    fn physics_process(&mut self, _: f64) {
+
+    fn process(&mut self, delta: f64) {
+        self.timer.frame_micros_rolling += (delta * 1000000.0) as u64;
+
         self.timer.frame_count = self.timer.frame_count
             .add(1)
             .rem(16);
-        
+
         if self.timer.frame_count == 0 {
+            self.timer.frame_micros = self.timer.frame_micros_rolling / 16;
+            self.timer.frame_micros_rolling = 0;
+        }
+    }
+    
+    fn physics_process(&mut self, _: f64) {
+        self.timer.tick_count = self.timer.tick_count
+            .add(1)
+            .rem(16);
+        
+        if self.timer.tick_count == 0 {
             self.timer.physics_micros = self.timer.physics_micros_rolling / 16;
             self.timer.physics_micros_rolling = 0;
             self.timer.render_micros = self.timer.render_micros_rolling / 16;
@@ -200,6 +198,10 @@ impl ControlVirtual for EcsFramework {
         self.timer.physics_micros_rolling += time(|| {
             self.world.run_schedule(Schedules::Physics);
             self.base.queue_redraw();
+        }).0;
+
+        self.timer.render_micros_rolling += time(|| {
+            self.draw_entities();
         }).0;
     }
 }
