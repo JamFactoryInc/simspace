@@ -76,16 +76,16 @@ impl EcsFramework {
     fn draw_timings(&mut self) {
         self.base.draw_multiline_string(
             self.base.get_theme_font("default".into()).unwrap(),
-             Vector2 {
+            Vector2 {
                 x: self.base.get_viewport_rect().size.x - 250.0,
                 y: 30.0,
             },
             format!(
                 "fps: {:?}\nphysics: {:?}us\nmesh update: {:?}us",
+                1000000.0 / self.timer.frame_micros as f32,
                 self.timer.physics_micros,
                 self.timer.render_micros,
-                1000000.0 / self.timer.frame_micros as f32
-            ).into()
+            ).into(),
         )
     }
     
