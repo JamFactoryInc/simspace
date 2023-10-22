@@ -1,40 +1,37 @@
-# LOG-001 1.0:
-## Notes:
+# LOG-1: Getting started with some simulation
+
+## 0.1.0:
     Got rust & bevy ECS working with godot
     Rendering with manual draw instead of sprite nodes to save memory (and leverage ECS)
-
-## Observations:
     Our particle is losing inertia somehow even though there's nothing in place to dampen it.
     Seems like when our particle reaches dX = 0 or x = 0, the bounds checking breaks.
     Probably has to do with the sign being removed when multiplying by zero
 
-# LOG-2 0.1:
-## Notes:
+# LOG-2: Making a particle
+
+## 2.0.1:
     Looks like I just adjusted the potition to be exactly y=0 instead of making it bounce
 
-# LOG-2 0.2:
-## Notes:
+## 2.0.2:
     Weird oscellating probably caused by per-frame multiplaction of velocity
 
-# LOG-2 0.4:
-## Notes:
+## 2.0.4:
     Looks like things are mostly fixed up now thanks to copying the sign of the velocity instead of the negative velocity
     There's most likely an issue with maintaining the energy of the system since gravity is being applied constantly
     while in fact for the frame where y <= 0 we aren't falling for the whole frame (because of the bounce adjustment)
     I think this will cause the energy to slowly increase, or at least not remain constant, but for now it's fine
 
-# LOG-3 1.0:
-## Notes:
+# LOG-2: Basic physics
+
+## 3.1.0:
     Added process timings to measure performance
     Total timings won't quite add up to the total microseconds per frame, but it'll be a good measure of how long our code is taking
 
-# LOG-4 0.1:
-## Notes:
+## 4.0.1:
     Time to stress test.
     Timings are looking about the same for 10 entities
 
-# LOG-4 0.2:
-## Notes:
+## 4.0.2:
     Rendering time for 5000 entities is incredibly bad. Clearly drawing each one individually is not the way to go.
     Note that the `render` time displayed is just the time taken for the CPU to update the positions of our particles,
     not the actual render time taken by the GPU
@@ -42,8 +39,9 @@
     Good news though: even on a debug build, we're getting about 1ms physics processing timings for 5000 entities.
     At least that part is efficient enough at the moment
 
-# LOG-5 0.1.3:
-## Notes:
+# LOG-5: Optimize the fuck out of it
+
+## 5.0.1.3:
     Looks like using instancing has vastly improved our performance, but gravity seems to have inverted.
     Just flipping the gravity multiplier should be a quick fix for now.
     I'll also make the particles a bit smaller since getting up to 5000 is making it hard to see what's happening.
@@ -51,8 +49,7 @@
     which is visible now that we're sampling 5000 of them. I won't fix this since it's not really what I'm testing.
     Let's keep pushing the numbers to see what we need to do next
 
-# LOG-5 0.1.4:
-## Notes:
+## 5.0.1.4:
     25000 particles is starting to get a bit choppy.
     Even after our rendering overhaul, it still seems to be the bottleneck.
     Also, the compression is starting to really struggle with what is effectively visual noise at this point.
@@ -62,14 +59,12 @@
     As a side note, I'm pretty surpirsed my initial collision function has held up so far.
     It's getting up to 4ms per frame, though, so something tells me it'll be our next target.
 
-# LOG-5 0.2.0:
-## Notes:
+## 5.0.2.0:
     Well it seems to have made things slower, if anything. I didn't really expect that.
     I'm assuming it's because it's a debug build,
     and things I'd expect to be optimised are skipped for the sake of build time
 
-# LOG-5 0.2.2:
-## Notes:
+## 5.0.2.2:
     Well it was certainly worth the wait!
     (Although this was the first optimized compilation, so subsequent ones will be very fast)
     Who knew optimizing your build made things go faster. I'm guessing llvm figured out how to vectorize my shitty
@@ -82,9 +77,7 @@
     so they are less like static and more observable.
     Also this will help greatly with video compression
     
-
-# LOG-5 0.2.3:
-## Notes:
+## 5.0.2.3:
     I'm persisting the render buffer across frames now, and just overwriting the necessary position values
     It seems to be running about 5 times faster,
     although I feel like I might be able to squeeze just a little out of it
@@ -95,16 +88,14 @@
     using NVENC to encode.
     I'll miss these beautifully small video files and readable text.
 
-# LOG-5 0.2.4:
-## Notes:
+## 5.0.2.4:
     As an apples-to-apples comparison, this is the same simulation using NVENC.
     The numbers are a little hard to read,
     but they're much more representitive of the normal performance at a render time of 720-800 microseconds.
     In contrast to the AV1-recorded clip reporting over 1000 microseconds.
     I didn't expect an optimization step to be changing my OBS settings.
 
-# LOG-5 0.2.5:
-## Notes:
+## 5.0.2.5:
     I discovered that the Godot glue type PackedFloat32Array does an array copy when being created from a slice,
     which makes sense, as it would be a blatent violation of Rust's borrowing rules if it didn't.
     This bascially means I was allocating 800KB worth of transform buffer each frame,
@@ -112,6 +103,14 @@
     Needless to say, I replaced my persistent Vector with a PackedFloat32Array directly,
     completely avoiding this glue code overhead, and look, we saved about 200 microseconds per frame.
     Easy as
+
+## 5.1.0.1:
+    Well, I got the numbers I was hoping for without ever needing to optimize my physics.
+    It is a grossly over-simplified version of physics, though, where particles have no knowledge of one-another,
+    and non-axis-aligned surfaces do not exist.
+    Next, we'll be overhauling our physics,
+    and make use of some of the CPU power that we've been working so hard to save
+    
     
     
     
