@@ -107,7 +107,7 @@
 ## Notes:
     I discovered that the Godot glue type PackedFloat32Array does an array copy when being created from a slice,
     which makes sense, as it would be a blatent violation of Rust's borrowing rules if it didn't.
-    This bascially means I was allocating 800kB worth of transform buffer each frame,
+    This bascially means I was allocating 800KB worth of transform buffer each frame,
     just to convert between rust's native Vec<f32> and gdextension's PackedFloat32Array.
     Needless to say, I replaced my persistent Vector with a PackedFloat32Array directly,
     completely avoiding this glue code overhead, and look, we saved about 200 microseconds per frame.
