@@ -62,5 +62,49 @@
     As a side note, I'm pretty surpirsed my initial collision function has held up so far.
     It's getting up to 4ms per frame, though, so something tells me it'll be our next target.
 
+# LOG-5 0.2.0:
+## Notes:
+    Well it seems to have made things slower, if anything. I didn't really expect that.
+    I'm assuming it's because it's a debug build,
+    and things I'd expect to be optimised are skipped for the sake of build time
 
+# LOG-5 0.2.2:
+## Notes:
+    Well it was certainly worth the wait!
+    (Although this was the first optimized compilation, so subsequent ones will be very fast)
+    Who knew optimizing your build made things go faster. I'm guessing llvm figured out how to vectorize my shitty
+    physics code, and it definitely did so with the render logic
+    Looks like we can still take things a little bit farther.
+    I was lazy with the render buffer and let rust figure out how to allocate the vector,
+    but it's clearly doing it naively & doing a bunch of re-allocations up to a capactiy of 200000 floats.
+    Not surprised it's struggling
+    Additionally, I'll take the liberty of slowing down the particles' acceleration and initial speed,
+    so they are less like static and more observable.
+    Also this will help greatly with video compression
+    
+
+# LOG-5 0.2.3:
+## Notes:
+    I'm persisting the render buffer across frames now, and just overwriting the necessary position values
+    It seems to be running about 5 times faster,
+    although I feel like I might be able to squeeze just a little out of it
+    Something interesting that I've started to notice is that recording the simulation adds about 100 microseconds
+    to the render time.
+    I'm encoding via AV1 with my CPU since my GPU doesn't support AV1, and it's rather intensive.
+    I would have thought I had enough cores for it to not impact performance, but evidently not, so from now I'll be
+    using NVENC to encode.
+    I'll miss these beautifully small video files and readable text.
+
+# LOG-5 0.2.4:
+## Notes:
+    As an apples-to-apples comparison, this is the same simulation using NVENC.
+    The numbers are a little hard to read,
+    but they're much more representitive of the normal performance at a render time of 720-800 microseconds.
+    In contrast to the AV1-recorded clip reporting over 1000 microseconds.
+    I didn't expect an optimization step to be changing my OBS settings.
+
+
+    
+    
+    
     

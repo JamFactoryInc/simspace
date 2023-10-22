@@ -3,7 +3,7 @@ use bevy::prelude::{Component, Deref, DerefMut, Query};
 use godot::log::godot_print;
 use godot::prelude::Vector2;
 
-pub const GRAVITY: Vector2 = Vector2 { x: 0.0, y: 0.98 };
+pub const GRAVITY: Vector2 = Vector2 { x: 0.0, y: 0.1 };
 pub const CONTAINER: (Vector2, Vector2) = (
     Vector2 {
         x: 0.0,
