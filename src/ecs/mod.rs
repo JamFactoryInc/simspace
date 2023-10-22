@@ -1,12 +1,13 @@
-use std::ops::{Add, Deref, Rem};
+use std::ops::{Add, Deref, MulAssign, Rem};
+use std::simd::StdFloat;
 
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::{Schedule, World};
+use bevy::reflect::Tuple;
 use bevy::utils::petgraph::visit::Walker;
 use godot::builtin::{PackedFloat32Array, Transform2D};
 use godot::engine::{Control, ControlVirtual, InputEvent, MultiMesh, MultiMeshInstance2D, NodeExt, RenderingServer};
 use godot::engine::utilities::randf_range;
-use godot::log::godot_print;
 use godot::prelude::{Base, Color, Gd, godot_api, GodotClass, Node2DVirtual, NodePath, Rect2, Vector2};
 
 use crate::ecs::physics::{CONTAINER, physics, Position, Velocity};
@@ -39,7 +40,7 @@ struct EcsFramework {
     world: World,
     timer: EcsTimer,
     multi_mesh: Option<Gd<MultiMesh>>,
-    multi_mesh_buffer: Vec<f32>
+    multi_mesh_buffer: PackedFloat32Array
 }
 
 impl EcsFramework {
@@ -57,8 +58,9 @@ impl EcsFramework {
         );
     }
     
-    fn draw_entities(world: &mut World, multi_mesh: &MultiMesh, multi_mesh_buffer: &mut Vec<f32>) {
-        multi_mesh_buffer.chunks_exact_mut(8)
+    fn draw_entities(world: &mut World, multi_mesh: &MultiMesh, multi_mesh_buffer: &mut PackedFloat32Array) {
+        
+        multi_mesh_buffer.as_mut_slice().chunks_exact_mut(8)
             .zip(world.query::<&Position>().iter(world))
             .for_each(|(transform, pos)|  {
                 transform[3] = pos.x;
@@ -67,7 +69,7 @@ impl EcsFramework {
         
         RenderingServer::singleton().multimesh_set_buffer(
             multi_mesh.get_rid(),
-            PackedFloat32Array::from(multi_mesh_buffer.as_slice())
+            multi_mesh_buffer.clone()
         );
     }
     
@@ -114,7 +116,7 @@ impl ControlVirtual for EcsFramework {
             world,
             timer: EcsTimer::default(),
             multi_mesh: None,
-            multi_mesh_buffer: vec![0f32; INSTANCES * 8]
+            multi_mesh_buffer: PackedFloat32Array::from(vec![0f32; INSTANCES * 8].as_slice())
         }
     }
     
@@ -145,7 +147,7 @@ impl ControlVirtual for EcsFramework {
             mesh.set_visible_instance_count(INSTANCES as i32);
         }
         
-        self.multi_mesh_buffer.chunks_exact_mut(8)
+        self.multi_mesh_buffer.as_mut_slice().chunks_exact_mut(8)
             .for_each(|transform|  {
                 transform[0] = 2.0;
                 transform[5] = 2.0;

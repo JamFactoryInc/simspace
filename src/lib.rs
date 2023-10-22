@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![feature(portable_simd)]
 
 mod ecs;
 mod entity;
