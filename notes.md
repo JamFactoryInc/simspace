@@ -110,6 +110,16 @@
     and non-axis-aligned surfaces do not exist.
     Next, we'll be overhauling our physics,
     and make use of some of the CPU power that we've been working so hard to save
+    Now, just for fun, I'll push the simulation as far as it can go, with absolutely no regard for video quality.
+
+## 5.1.0.2:
+    Looks Like around 250k particles we start to struggle, and at 500k I'd hesitate to call it real-time.
+    I beleive at this quantity, my CPU simple doesn't have enough cache to make this efficient.
+    I'm using a Ryzen 3900x, which has 64MB of L3 cache
+    The mesh buffer alone is 16MB at 500k particles, and the fact that this is running on a single core means
+    that we only have 512 KB of L2, and even less L1 to work with.
+    Thankfully, my end-goal will probably be more cache friendly
+    
     
     
     

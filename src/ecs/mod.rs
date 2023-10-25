@@ -2,17 +2,19 @@ use std::ops::{Add, Deref, Rem};
 
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::{Schedule, World};
-use godot::builtin::{PackedFloat32Array, Transform2D};
+use godot::builtin::PackedFloat32Array;
 use godot::engine::{Control, ControlVirtual, InputEvent, MultiMesh, MultiMeshInstance2D, NodeExt, RenderingServer};
 use godot::engine::utilities::randf_range;
 use godot::prelude::{Base, Color, Gd, godot_api, GodotClass, NodePath, Rect2, Vector2};
 
-use crate::ecs::physics::{CONTAINER, physics, Position, Velocity};
+use crate::ecs::physics::{CONTAINER, Position, Velocity};
 use crate::util::time;
+
+use self::physics::do_physics;
 
 mod physics;
 
-const INSTANCES: usize = 25000;
+const INSTANCES: usize = 500000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[derive(ScheduleLabel)]
@@ -59,16 +61,19 @@ impl EcsFramework {
         );
     }
     
-    fn draw_entities(&mut self) {
-        self.multi_mesh_buffer.as_mut_slice().chunks_exact_mut(8)
-            .zip(self.world.query::<&Position>().iter(&self.world))
-            .for_each(|(transform, pos)| {
+    fn update_mesh(&mut self) {
+        self.multi_mesh_buffer.as_mut_slice().array_chunks_mut::<8>()
+            .zip(self.world.query::<(&mut Position, &mut Velocity)>().iter_mut(&mut self.world))
+            .for_each(|(transform, (mut pos, mut vel))| {
+
+                do_physics(&mut pos, &mut vel);
+
                 transform[3] = pos.x;
                 transform[7] = pos.y;
             });
-
+        
         self.render_server.multimesh_set_buffer(
-            self.multi_mesh.as_mut().unwrap().get_rid(),
+            self.multi_mesh.as_ref().unwrap().get_rid(),
             self.multi_mesh_buffer.clone()
         );
     }
@@ -88,14 +93,6 @@ impl EcsFramework {
             ).into(),
         )
     }
-    
-    fn position_to_transform(pos: &Position) -> Transform2D {
-        Transform2D {
-            a: Vector2 { x: 2.0, y: 0.0 },
-            b: Vector2 { x: 0.0, y: 2.0 },
-            origin: pos.0,
-        }
-    }
 }
 
 #[godot_api]
@@ -103,7 +100,6 @@ impl ControlVirtual for EcsFramework {
     fn init(base: Base<Control>) -> Self {
         
         let mut physics_schedule = Schedule::new();
-        physics_schedule.add_systems(physics);
         
         let mut world = World::new();
         world.add_schedule(physics_schedule, Schedules::Physics);
@@ -151,7 +147,7 @@ impl ControlVirtual for EcsFramework {
                 transform[5] = 2.0;
             });
 
-        self.draw_entities();
+        self.update_mesh();
     }
     
     fn unhandled_key_input(&mut self, event: Gd<InputEvent>) {
@@ -196,12 +192,12 @@ impl ControlVirtual for EcsFramework {
         }
         
         self.timer.physics_micros_rolling += time(|| {
-            self.world.run_schedule(Schedules::Physics);
+            //self.world.run_schedule(Schedules::Physics);
             self.base.queue_redraw();
         }).0;
 
         self.timer.render_micros_rolling += time(|| {
-            self.draw_entities();
+            self.update_mesh();
         }).0;
     }
 }
